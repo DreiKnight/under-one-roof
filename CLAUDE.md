@@ -20,7 +20,8 @@ This is past the initial MVP scaffold — real auth and data architecture are li
 
 ## Open Items
 
-- Add/Edit UI on the Bills page still needs to be built
+- ~~Add/Edit UI on the Bills page still needs to be built~~ — done: `BillForm` +
+  modal-based add/edit/delete already ship on `/app/bills`, gated by `isDemo()`.
 - Google Play Store submission in progress — requires Capacitor wrapping
 - Priority: get this into the Apple App Store
 

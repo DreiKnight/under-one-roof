@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { supabase } from "@/services/supabaseClient";
+import { supabase, isSupabaseConfigured } from "@/services/supabaseClient";
 
 // ----------------------------------------------------------------------------
 // AUTH CONTEXT — dual-mode
@@ -81,6 +81,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function init() {
+      // Live auth isn't configured in this environment (no Supabase env vars) —
+      // skip straight to whatever demo/mock session is stored, without making
+      // any network calls.
+      if (!isSupabaseConfigured) {
+        setUser(readStored());
+        setLoading(false);
+        return;
+      }
+
       // Check for an existing Supabase session first.
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
@@ -102,6 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     init();
+
+    if (!isSupabaseConfigured) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     // Keep live sessions in sync (tab switches, token refresh, sign-out elsewhere).
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -147,12 +162,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
 
       signIn: async (email: string, password: string) => {
+        if (!isSupabaseConfigured) {
+          throw new Error(
+            "Live sign-in isn't set up for this environment yet — try the demo instead."
+          );
+        }
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw new Error(error.message);
         // onAuthStateChange will update user + uor:session automatically.
       },
 
       signUp: async (name: string, email: string, password: string) => {
+        if (!isSupabaseConfigured) {
+          throw new Error(
+            "Live accounts aren't set up for this environment yet — try the demo instead."
+          );
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -167,7 +192,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       signOut: async () => {
-        await supabase.auth.signOut();
+        if (isSupabaseConfigured) {
+          await supabase.auth.signOut();
+        }
         persist(null);
         writeSession(null);
       },
