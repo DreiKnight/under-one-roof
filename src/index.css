@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    font-feature-settings: "ss01", "cv05";
+  }
+
+  /* Visible keyboard focus everywhere — accessibility floor */
+  :focus-visible {
+    @apply outline-none ring-2 ring-evergreen ring-offset-2 ring-offset-paper;
+  }
+
+  ::selection {
+    background-color: #E0A45844;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .roof-divider {
+    background-image: linear-gradient(
+      135deg,
+      transparent calc(50% - 0.5px),
+      #D6CFC1 50%,
+      transparent calc(50% + 0.5px)
+    );
+  }
+}
+
+/* Honey dot glow — "the light is on" pulse every 5 s */
+@keyframes honey-pulse {
+  0%, 78%, 100% { filter: drop-shadow(0 0 0px rgba(224, 164, 88, 0)); }
+  84%           { filter: drop-shadow(0 0 5px rgba(224, 164, 88, 1)) drop-shadow(0 0 2px rgba(255, 200, 100, 0.9)); }
+  92%           { filter: drop-shadow(0 0 0px rgba(224, 164, 88, 0)); }
+}
+
+@layer utilities {
+  .animate-honey-pulse {
+    animation: honey-pulse 5s ease-in-out infinite;
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
