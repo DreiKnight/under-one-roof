@@ -8,21 +8,55 @@ import {
   LogOut,
   Lock,
   Sparkles,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import {
+  EmergencyContactForm,
+  type EmergencyContactFormValues,
+} from "@/components/properties/EmergencyContactForm";
 import { useAuth } from "@/context/AuthContext";
-import { getHomeProfile, getEmergencyContacts } from "@/services/homeService";
+import { useActiveProperty } from "@/context/ActivePropertyContext";
+import {
+  getEmergencyContacts,
+  createEmergencyContact,
+  removeEmergencyContact,
+} from "@/services/homeService";
 import { getDocuments } from "@/services/documentsService";
+import { isDemo } from "@/config";
 import { maskAddress, classNames } from "@/lib/format";
+import type { EmergencyContact } from "@/types";
 
 export function Settings() {
   const { user, signOut } = useAuth();
-  const homeProfile = getHomeProfile();
-  const emergencyContacts = getEmergencyContacts();
+  const { activeProperty } = useActiveProperty();
+  const demo = isDemo();
+  const [contacts, setContacts] = useState<EmergencyContact[]>(() =>
+    activeProperty ? getEmergencyContacts(activeProperty.id) : []
+  );
+  const [addingContact, setAddingContact] = useState(false);
   const documents = getDocuments();
   const sharedDocs = documents.filter((d) => d.aiAnalysisAllowed).length;
+
+  function refreshContacts() {
+    setContacts(activeProperty ? getEmergencyContacts(activeProperty.id) : []);
+  }
+
+  function handleAddContact(values: EmergencyContactFormValues) {
+    if (!activeProperty) return;
+    createEmergencyContact({ ...values, propertyId: activeProperty.id });
+    refreshContacts();
+    setAddingContact(false);
+  }
+
+  function handleRemoveContact(id: string) {
+    removeEmergencyContact(id);
+    refreshContacts();
+  }
 
   const [prefs, setPrefs] = useState({
     billReminders: true,
@@ -40,15 +74,31 @@ export function Settings() {
         <Section icon={<User className="h-4 w-4" />} title="Profile">
           <Field label="Name" value={user?.name ?? "—"} />
           <Field label="Email" value={user?.email ?? "—"} />
-          <p className="pt-1 text-xs text-muted">Demo profile — editing is disabled until real accounts are live.</p>
+          <p className="pt-1 text-xs text-muted">
+            {demo
+              ? "Demo profile — editing is disabled until you sign in with a real account."
+              : "Profile editing isn't available yet in this build."}
+          </p>
         </Section>
 
         {/* Home */}
         <Section icon={<Home className="h-4 w-4" />} title="Home details">
-          <Field label="Nickname" value={homeProfile.nickname} />
-          <Field label="Type" value={homeProfile.type} />
-          <Field label="Address" value={maskAddress(homeProfile.address)} hint="Masked in demo mode" />
-          <Field label="Members" value={String(homeProfile.members)} />
+          {activeProperty ? (
+            <>
+              <Field label="Nickname" value={activeProperty.nickname} />
+              <Field label="Type" value={activeProperty.type} />
+              <Field
+                label="Address"
+                value={maskAddress(activeProperty.address)}
+                hint={demo ? "Masked in demo mode" : undefined}
+              />
+              <Field label="Members" value={String(activeProperty.members)} />
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              You haven't added a property yet — add one from the Dashboard to see its details here.
+            </p>
+          )}
         </Section>
 
         {/* Emergency info */}
@@ -56,17 +106,45 @@ export function Settings() {
           <p className="-mt-1 mb-1 text-xs text-muted">
             The things you'll want fast in a pinch — shut-offs, your landlord, trusted vendors.
           </p>
-          <ul className="divide-y divide-stone">
-            {emergencyContacts.map((c) => (
-              <li key={c.label} className="flex items-center justify-between py-2.5">
-                <div>
-                  <p className="text-sm font-medium text-ink">{c.name}</p>
-                  <p className="text-xs text-muted">{c.label}</p>
-                </div>
-                <span className="text-sm text-muted">{c.phone}</span>
-              </li>
-            ))}
-          </ul>
+          {!activeProperty ? (
+            <p className="text-sm text-muted">Add a property first to keep emergency contacts here.</p>
+          ) : (
+            <>
+              {contacts.length === 0 && (
+                <p className="text-sm text-muted">No emergency contacts yet.</p>
+              )}
+              <ul className="divide-y divide-stone">
+                {contacts.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between py-2.5">
+                    <div>
+                      <p className="text-sm font-medium text-ink">{c.name}</p>
+                      <p className="text-xs text-muted">{c.label}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted">{c.phone}</span>
+                      {!demo && (
+                        <button
+                          onClick={() => handleRemoveContact(c.id)}
+                          aria-label={`Remove ${c.name}`}
+                          className="text-muted hover:text-clay"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => setAddingContact(true)}
+                disabled={demo}
+                title={demo ? "Sign in to add real emergency contacts — demo data is read-only" : undefined}
+                className="mt-3 flex items-center gap-1.5 text-sm font-medium text-evergreen hover:text-evergreen-deep disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-evergreen"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add a contact
+              </button>
+            </>
+          )}
         </Section>
 
         {/* Notifications */}
@@ -105,8 +183,9 @@ export function Settings() {
             <p className="flex items-start gap-2">
               <Lock className="mt-0.5 h-4 w-4 shrink-0 text-evergreen" />
               <span>
-                This build stores only a demo session in your browser. No documents, addresses, or
-                financial details are saved anywhere. Real, encrypted storage comes with accounts.
+                {demo
+                  ? "This build stores only a demo session in your browser. No documents, addresses, or financial details are saved anywhere. Real, encrypted storage comes with accounts."
+                  : "You're signed in, but this build still keeps your data in this browser only (not a private server) — treat it as a test build, not permanent storage."}
               </span>
             </p>
           </div>
@@ -121,13 +200,21 @@ export function Settings() {
         <Card className="flex items-center justify-between p-5">
           <div>
             <p className="font-medium text-ink">Sign out</p>
-            <p className="text-sm text-muted">End this demo session on this device.</p>
+            <p className="text-sm text-muted">
+              {demo ? "End this demo session on this device." : "Sign out of your account."}
+            </p>
           </div>
           <Button variant="secondary" onClick={signOut}>
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
         </Card>
       </div>
+
+      {addingContact && (
+        <Modal title="Add an emergency contact" onClose={() => setAddingContact(false)}>
+          <EmergencyContactForm onSubmit={handleAddContact} onCancel={() => setAddingContact(false)} />
+        </Modal>
+      )}
     </div>
   );
 }

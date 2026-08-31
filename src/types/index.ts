@@ -111,6 +111,8 @@ export interface HomeProfile {
 }
 
 export interface EmergencyContact {
+  id: string;
+  propertyId: string;
   label: string;
   name: string;
   phone: string;

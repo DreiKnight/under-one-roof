@@ -25,7 +25,7 @@ export const navItems: NavItem[] = [
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, signOut }       = useAuth();
   const { activeProperty }      = useActiveProperty();
-  const isRenter                = activeProperty.type === "Renter";
+  const isRenter                = activeProperty?.type === "Renter";
 
   // Color tokens that flip based on property type
   const accentStrip  = isRenter ? "bg-honey-deep"                     : "bg-evergreen-deep";
@@ -77,26 +77,32 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Bottom: active property + sign out */}
       <div className="border-t border-stone p-3 space-y-2">
-        <div className={classNames("rounded-xl px-3 py-3", bottomBg)}>
-          {/* Property icon + type badge */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className={classNames(
-                "flex h-7 w-7 items-center justify-center rounded-lg",
-                isRenter ? "bg-honey/30" : "bg-evergreen/20",
-              )}>
-                {isRenter
-                  ? <Key  className="h-3.5 w-3.5 text-amber-700" />
-                  : <Home className="h-3.5 w-3.5 text-evergreen-deep" />}
+        <div className={classNames("rounded-xl px-3 py-3", activeProperty ? bottomBg : "bg-paper-sunk border border-stone")}>
+          {activeProperty ? (
+            <>
+              {/* Property icon + type badge */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={classNames(
+                    "flex h-7 w-7 items-center justify-center rounded-lg",
+                    isRenter ? "bg-honey/30" : "bg-evergreen/20",
+                  )}>
+                    {isRenter
+                      ? <Key  className="h-3.5 w-3.5 text-amber-700" />
+                      : <Home className="h-3.5 w-3.5 text-evergreen-deep" />}
+                  </div>
+                  <span className={badgeStyle}>
+                    {isRenter ? "RENTER" : "OWNER"}
+                  </span>
+                </div>
               </div>
-              <span className={badgeStyle}>
-                {isRenter ? "RENTER" : "OWNER"}
-              </span>
-            </div>
-          </div>
-          {/* Property details */}
-          <p className="text-xs font-bold text-ink truncate">{activeProperty.nickname}</p>
-          <p className="text-xs text-muted truncate">{maskAddress(activeProperty.address)}</p>
+              {/* Property details */}
+              <p className="text-xs font-bold text-ink truncate">{activeProperty.nickname}</p>
+              <p className="text-xs text-muted truncate">{maskAddress(activeProperty.address)}</p>
+            </>
+          ) : (
+            <p className="text-xs text-muted">No property yet — add one from the dashboard.</p>
+          )}
           <p className="text-xs text-muted mt-1">
             Signed in as <span className="font-medium text-ink">{user?.name ?? "Guest"}</span>
           </p>

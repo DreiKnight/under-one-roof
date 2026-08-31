@@ -13,8 +13,8 @@ export function AppLayout() {
   const { activeProperty } = useActiveProperty();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const isRenter = activeProperty.type === "Renter";
-  const pageBg = isRenter ? "bg-[#FFFDF8]" : "bg-[#F6FAF8]";
+  const isRenter = activeProperty?.type === "Renter";
+  const pageBg = !activeProperty ? "bg-paper" : isRenter ? "bg-[#FFFDF8]" : "bg-[#F6FAF8]";
 
   if (loading) {
     return (

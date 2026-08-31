@@ -1,19 +1,48 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { HomeProfile } from "@/types";
-import { getAllProperties } from "@/services/homeService";
+import { getAllProperties, createProperty } from "@/services/homeService";
+import { useAuth } from "@/context/AuthContext";
 
 interface ActivePropertyContextValue {
-  activeProperty: HomeProfile;
+  properties: HomeProfile[];
+  // null only happens in live mode before the user has added their first
+  // property — demo mode always ships with sample properties.
+  activeProperty: HomeProfile | null;
   setActiveProperty: (p: HomeProfile) => void;
+  addProperty: (data: Omit<HomeProfile, "id">) => HomeProfile;
 }
 
 const ActivePropertyContext = createContext<ActivePropertyContextValue | undefined>(undefined);
 
 export function ActivePropertyProvider({ children }: { children: ReactNode }) {
-  const properties = getAllProperties();
-  const [activeProperty, setActiveProperty] = useState<HomeProfile>(properties[0]);
+  // Auth state (not just its presence) decides demo vs. live per config.ts's
+  // isDemo()/isLive(), which read the session written by AuthContext. This
+  // provider mounts once at the app root — BEFORE anyone has signed in — so
+  // it must re-read getAllProperties() whenever the auth session actually
+  // changes (sign-in, sign-out, demo entry), not just once on mount. Without
+  // this, a real Supabase login would leave the switcher stuck showing
+  // whatever properties were visible before the user was authenticated.
+  const { user } = useAuth();
+  const [properties, setProperties] = useState<HomeProfile[]>(() => getAllProperties());
+  const [activeProperty, setActiveProperty] = useState<HomeProfile | null>(properties[0] ?? null);
+
+  useEffect(() => {
+    const fresh = getAllProperties();
+    setProperties(fresh);
+    setActiveProperty((prev) => fresh.find((p) => p.id === prev?.id) ?? fresh[0] ?? null);
+  }, [user]);
+
+  function addProperty(data: Omit<HomeProfile, "id">): HomeProfile {
+    const created = createProperty(data);
+    setProperties((prev) => [...prev, created]);
+    setActiveProperty(created);
+    return created;
+  }
+
   return (
-    <ActivePropertyContext.Provider value={{ activeProperty, setActiveProperty }}>
+    <ActivePropertyContext.Provider
+      value={{ properties, activeProperty, setActiveProperty, addProperty }}
+    >
       {children}
     </ActivePropertyContext.Provider>
   );

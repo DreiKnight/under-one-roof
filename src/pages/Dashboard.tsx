@@ -8,13 +8,17 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { PropertyForm, type PropertyFormValues } from "@/components/properties/PropertyForm";
 import { useAuth } from "@/context/AuthContext";
 import { getBills } from "@/services/billsService";
 import { getContracts } from "@/services/contractsService";
 import { getMaintenanceTasks } from "@/services/maintenanceService";
 import { getRepairs } from "@/services/repairsService";
-import { getAllProperties } from "@/services/homeService";
 import { useActiveProperty } from "@/context/ActivePropertyContext";
+import { isDemo } from "@/config";
 import {
   formatCurrency, formatDate, daysUntil, relativeDays, maskAddress, classNames,
 } from "@/lib/format";
@@ -26,10 +30,12 @@ type PanelId =
   | null;
 
 // ── Property Switcher ──────────────────────────────────────────────────────
-function PropertySwitcher({ properties, active, onChange }: {
+function PropertySwitcher({ properties, active, onChange, onAddProperty }: {
   properties: HomeProfile[]; active: HomeProfile; onChange: (p: HomeProfile) => void;
+  onAddProperty: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const demo = isDemo();
   return (
     <div className="relative mb-0">
       <button
@@ -71,7 +77,13 @@ function PropertySwitcher({ properties, active, onChange }: {
             </button>
           ))}
           <div className="border-t border-stone px-4 py-3 bg-paper-sunk">
-            <button className="flex items-center gap-2 text-sm font-medium text-evergreen hover:text-evergreen-deep transition-colors">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onAddProperty(); }}
+              disabled={demo}
+              title={demo ? "Sign in to add a real property — demo properties are read-only" : undefined}
+              className="flex items-center gap-2 text-sm font-medium text-evergreen hover:text-evergreen-deep transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-evergreen"
+            >
               <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-evergreen font-bold text-base leading-none">+</span>
               Add a property
             </button>
@@ -706,22 +718,55 @@ function HomeownerPortal({ home, panel, onPanel, name }: {
 
 // ── Main export ─────────────────────────────────────────────────────────────
 export function Dashboard() {
-  const { user }                                = useAuth();
-  const { activeProperty, setActiveProperty }   = useActiveProperty();
-  const properties                              = getAllProperties();
-  const [panel, setPanel]                       = useState<PanelId>(null);
+  const { user }                                          = useAuth();
+  const { properties, activeProperty, setActiveProperty, addProperty } = useActiveProperty();
+  const [panel, setPanel]                                  = useState<PanelId>(null);
+  const [addingProperty, setAddingProperty]                = useState(false);
 
   function onPanel(id: PanelId) { setPanel(prev => prev === id ? null : id); }
   function switchHome(p: HomeProfile) { setActiveProperty(p); setPanel(null); }
+  function handleAddProperty(values: PropertyFormValues) {
+    addProperty(values);
+    setAddingProperty(false);
+  }
   const name = user?.name?.split(" ")[0] ?? "";
+
+  if (!activeProperty) {
+    return (
+      <div>
+        <EmptyState
+          icon={<Building2 className="h-8 w-8" />}
+          title="Add your first home"
+          description="Set up a property to start tracking its bills, contracts, maintenance and repairs."
+          action={<Button onClick={() => setAddingProperty(true)}>Add a property</Button>}
+        />
+        {addingProperty && (
+          <Modal title="Add a property" onClose={() => setAddingProperty(false)}>
+            <PropertyForm onSubmit={handleAddProperty} onCancel={() => setAddingProperty(false)} />
+          </Modal>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
-      <PropertySwitcher properties={properties} active={activeProperty} onChange={switchHome} />
+      <PropertySwitcher
+        properties={properties}
+        active={activeProperty}
+        onChange={switchHome}
+        onAddProperty={() => setAddingProperty(true)}
+      />
       {activeProperty.type === "Renter"
         ? <RenterPortal    home={activeProperty} panel={panel} onPanel={onPanel} name={name} />
         : <HomeownerPortal home={activeProperty} panel={panel} onPanel={onPanel} name={name} />
       }
+
+      {addingProperty && (
+        <Modal title="Add a property" onClose={() => setAddingProperty(false)}>
+          <PropertyForm onSubmit={handleAddProperty} onCancel={() => setAddingProperty(false)} />
+        </Modal>
+      )}
     </div>
   );
 }
